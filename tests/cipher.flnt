@@ -1,0 +1,19 @@
+
+List<Char> alphabet = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'}
+
+String encode(String input, Int shift) {
+    String output = ""
+    List<Bool> capitalisation = {}
+    for (Char character : input) {
+        Char outputCharacter
+        capitalisation.pushBack(c.isUpper())
+        
+    }
+}
+
+Int main() {
+
+
+
+    return 0
+}
