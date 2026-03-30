@@ -73,6 +73,5 @@ LexedFile lexFile(const std::string& fileContents) {
     if (!lexedFile.empty() && lexedFile.back().value.empty()) {
         lexedFile.pop_back();
     }
-
-    return LexedFile(lexedFile);
+    return LexedFile(std::move(lexedFile));
 }
