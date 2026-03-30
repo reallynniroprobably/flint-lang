@@ -1,0 +1,9 @@
+header(
+    standard as std
+)
+
+Int main() {
+    for (Int i = 0; i < 100; i++) {
+        std.print(String(i))
+    }
+}
