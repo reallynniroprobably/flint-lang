@@ -1,8 +1,15 @@
+# `#` makes the rest of the line a comment
+#Header imports, similar to #include
+#Can also be `header <standard> as std` for single import per line
 header(
     <standard> as std,
-);
+); 
+
+#List of character types
 
 std.List<Char> alphabet = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'};
+
+#Encode function that takes a string and an int and returns a string
 
 String encode(String input, Int shift) {
     String output = "";
@@ -25,10 +32,12 @@ String encode(String input, Int shift) {
     return output;
 }
 
+#Main function, runs when program is
+
 Int main() {
 
     String code = encode("This is a caesar cipher");
-
+    #The decode function was written by claude to see how understandable the grammar is from a blind start
     String decoded = decode(code);
 
     std.print(decoded);
