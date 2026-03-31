@@ -1,0 +1,263 @@
+(* ============================================================ *)
+(*  Flint Language Grammar — Machine-Readable EBNF             *)
+(*  Derived from cipher.flnt                                   *)
+(*  Convention: ISO 14977 Extended BNF                         *)
+(* ============================================================ *)
+
+(* ── Top-Level Structure ─────────────────────────────────── *)
+(*  A Flint source file is read top-to-bottom.                 *)
+(*  All declarations must appear before any use of them.       *)
+
+program
+    = { comment | import_decl | var_decl | function_decl } ;
+
+(* ── Comments ────────────────────────────────────────────── *)
+
+comment
+    = "#" , { any_char_except_newline } , newline ;
+
+(* ── Import Declarations ─────────────────────────────────── *)
+
+import_decl
+    = import_block | import_single ;
+
+import_block
+    = "header" , "(" , newline ,
+        import_item , { "," , newline , import_item } , [ "," ] , newline ,
+      ")" , ";" ;
+
+import_single
+    = "header" , import_item , ";" ;
+
+import_item
+    = library_ref , [ "as" , identifier ] ;
+
+library_ref
+    = builtin_library_ref | custom_library_ref ;
+
+builtin_library_ref
+    = "<" , identifier , ">" ;    (* standard / built-in libraries *)
+
+custom_library_ref
+    = '"' , identifier , '"' ;    (* user / third-party libraries  *)
+
+(* ── Function Declaration ────────────────────────────────── *)
+(*  Functions must be defined before any call site that uses   *)
+(*  them. The closing `}` terminates the declaration; no `;`.  *)
+
+function_decl
+    = type_ref , identifier ,
+      "(" , [ param_list ] , ")" ,
+      "{" , { statement } , "}" ;
+
+param_list
+    = param , { "," , param } ;
+
+param
+    = type_ref , identifier ;
+
+(* ── Statements ──────────────────────────────────────────── *)
+(*  Termination rule:                                          *)
+(*    - If a statement's last token on the line is `}`,        *)
+(*      no `;` follows — `}` acts as the terminator.           *)
+(*    - All other statements require a closing `;`.            *)
+
+statement
+    = var_decl      (* ends with `;`  *)
+    | for_loop      (* ends with `}`  *)
+    | if_stmt       (* ends with `}`  *)
+    | return_stmt   (* ends with `;`  *)
+    | expr_stmt     (* ends with `;`  *)
+    ;
+
+(* ── Variable Declaration ────────────────────────────────── *)
+(*  When the RHS is a switch_expr (which ends with `}`),       *)
+(*  the var_decl still requires its own trailing `;`.          *)
+
+var_decl
+    = type_ref , identifier , "=" , expr , ";" ;
+
+(* ── For Loop ────────────────────────────────────────────── *)
+
+for_loop
+    = "for" , "(" , type_ref , identifier , ":" , expr , ")" ,
+      "{" , { statement } , "}" ;
+
+(* ── If Statement ────────────────────────────────────────── *)
+
+if_stmt
+    = "if" , "(" , expr , ")" ,
+      "{" , { statement } , "}" ,
+      [ "else" , ( if_stmt | "{" , { statement } , "}" ) ] ;
+
+(* ── Return Statement ────────────────────────────────────── *)
+
+return_stmt
+    = "return" , expr , ";" ;
+
+(* ── Expression Statements ───────────────────────────────── *)
+
+expr_stmt
+    = expr , ";" ;
+
+(* ── Expressions ─────────────────────────────────────────── *)
+
+expr
+    = switch_expr
+    | apply_expr
+    | binary_expr ;
+
+(* ── Switch Expression ───────────────────────────────────── *)
+(*  switch is value-producing; it appears on the RHS of a     *)
+(*  var_decl. The subject is typically `true`; each case       *)
+(*  tests a boolean condition and the first truthy case wins.  *)
+(*  The `}` closes the switch body. The enclosing var_decl    *)
+(*  then provides the required `;`.                            *)
+
+switch_expr
+    = "switch" , "(" , expr , ")" ,
+      "{" ,
+          { case_branch } ,
+          [ default_branch ] ,
+      "}" ;
+
+case_branch
+    = "case" , "(" , expr , ")" , ":" ,
+        expr , ";" ,
+        "break" , ";" ;
+
+default_branch
+    = "default" , ":" , expr , ";" ;
+
+(* ── Apply Block ─────────────────────────────────────────── *)
+(*  Calls methods in the receiver's scope, mutating it.        *)
+(*  The `}` closes the apply block. When used as an            *)
+(*  expr_stmt, a `;` follows on the same line.                 *)
+
+apply_expr
+    = postfix_expr , "." , "apply" ,
+      "{" , method_call , { "," , method_call } , "}" ;
+
+(* ── Binary Expressions ──────────────────────────────────── *)
+
+binary_expr
+    = unary_expr , { binary_op , unary_expr } ;
+
+binary_op
+    = "+" | "-" | "*" | "/" | "%"
+    | ">" | "<" | ">=" | "<=" | "==" | "!="
+    | "&&" | "||" ;
+
+unary_expr
+    = [ unary_op ] , postfix_expr ;
+
+unary_op
+    = "-" | "!" ;
+
+(* ── Postfix Expressions ─────────────────────────────────── *)
+(*  ALL member access requires `()`. There are no bare         *)
+(*  property accesses — every member invocation uses `()`.     *)
+
+postfix_expr
+    = primary_expr , { postfix_suffix } ;
+
+postfix_suffix
+    = "." , identifier , "(" , [ arg_list ] , ")"   (* method call    *)
+    | "[" , expr , "]"                               (* index access   *)
+    | "(" , [ arg_list ] , ")"                       (* call on result *)
+    ;
+
+method_call
+    = identifier , "(" , [ arg_list ] , ")" ;
+
+arg_list
+    = expr , { "," , expr } ;
+
+(* ── Primary Expressions ─────────────────────────────────── *)
+
+primary_expr
+    = literal
+    | identifier
+    | "(" , expr , ")"
+    | collection_literal ;
+
+(* ── Literals ────────────────────────────────────────────── *)
+
+literal
+    = string_literal
+    | char_literal
+    | integer_literal
+    | float_literal
+    | bool_literal ;
+
+string_literal
+    = '"' , { string_char } , '"' ;
+
+char_literal
+    = "'" , char_char , "'" ;
+
+integer_literal
+    = digit , { digit } ;
+
+float_literal
+    = digit , { digit } , "." , digit , { digit } ;
+
+bool_literal
+    = "true" | "false" ;
+
+(* ── Collection Literal ──────────────────────────────────── *)
+(*  Square brackets `[ ]` are used for ALL iterable           *)
+(*  collection literals (List, Vector, etc.).                  *)
+(*  Curly braces `{ }` are EXCLUSIVELY for code blocks        *)
+(*  and are NEVER used for data literals.                      *)
+
+collection_literal
+    = "[" , expr , { "," , expr } , [ "," ] , "]" ;
+
+(* ── Type References ─────────────────────────────────────── *)
+
+type_ref
+    = generic_type
+    | qualified_name
+    | primitive_type ;
+
+primitive_type
+    = "String" | "Int" | "Char" | "Bool" | "Float" ;
+
+generic_type
+    = ( qualified_name | identifier ) , "<" , type_ref , ">" ;
+
+qualified_name
+    = identifier , { "." , identifier } ;
+
+(* ── Terminals ───────────────────────────────────────────── *)
+
+identifier
+    = letter , { letter | digit | "_" } ;
+
+letter
+    = "a" | ... | "z" | "A" | ... | "Z" | "_" ;
+
+digit
+    = "0" | ... | "9" ;
+
+string_char
+    = any_char_except_double_quote_or_newline
+    | escape_sequence ;
+
+char_char
+    = any_char_except_single_quote
+    | escape_sequence ;
+
+escape_sequence
+    = "\" , ( "n" | "t" | "r" | "\" | "'" | '"' | "0" ) ;
+
+any_char_except_newline
+    = (* any Unicode scalar value except U+000A *) ;
+
+newline
+    = "\n" | "\r\n" ;
+
+(* ============================================================ *)
+(*  END OF GRAMMAR                                              *)
+(* ============================================================ *)
