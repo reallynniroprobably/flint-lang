@@ -1,0 +1,242 @@
+(* ============================================================ *)
+(*  Flint Language Grammar — Machine-Readable EBNF             *)
+(*  Derived from cipher.flnt analysis                          *)
+(*  Convention: ISO 14977 Extended BNF                         *)
+(* ============================================================ *)
+
+(* ── Top-Level Structure ─────────────────────────────────── *)
+
+program
+    = { comment | import_decl | statement } ;
+
+(* ── Comments ────────────────────────────────────────────── *)
+
+comment
+    = "#" , { any_char_except_newline } , newline ;
+
+(* ── Import Declarations ─────────────────────────────────── *)
+
+import_decl
+    = import_block | import_single ;
+
+import_block
+    = "header" , "(" , newline ,
+        import_item , { "," , newline , import_item } , [ "," ] , newline ,
+      ")" , ";" ;
+
+import_single
+    = "header" , import_item , ";" ;
+
+import_item
+    = library_ref , "as" , identifier ;
+
+library_ref
+    = "<" , identifier , ">" ;
+
+(* ── Statements ──────────────────────────────────────────── *)
+
+statement
+    = var_decl
+    | function_decl
+    | for_loop
+    | if_stmt
+    | return_stmt
+    | expr_stmt
+    | block ;
+
+block
+    = "{" , { statement } , "}" ;
+
+(* ── Variable Declaration ────────────────────────────────── *)
+
+var_decl
+    = type_ref , identifier , "=" , expr , ";" ;
+
+(* ── Function Declaration ────────────────────────────────── *)
+
+function_decl
+    = type_ref , identifier ,
+      "(" , [ param_list ] , ")" ,
+      block ;
+
+param_list
+    = param , { "," , param } ;
+
+param
+    = type_ref , identifier ;
+
+(* ── Type References ─────────────────────────────────────── *)
+
+type_ref
+    = qualified_type
+    | generic_type
+    | primitive_type ;
+
+primitive_type
+    = "String" | "Int" | "Char" | "Bool" | "Float" ;
+
+generic_type
+    = ( qualified_name | identifier ) , "<" , type_ref , ">" ;
+
+qualified_type
+    = qualified_name ;
+
+qualified_name
+    = identifier , { "." , identifier } ;
+
+(* ── For Loop ────────────────────────────────────────────── *)
+
+for_loop
+    = "for" , "(" , type_ref , identifier , ":" , expr , ")" , block ;
+
+(* ── If Statement ────────────────────────────────────────── *)
+
+if_stmt
+    = "if" , "(" , expr , ")" , block , [ "else" , ( if_stmt | block ) ] ;
+
+(* ── Return Statement ────────────────────────────────────── *)
+
+return_stmt
+    = "return" , expr , ";" ;
+
+(* ── Expression Statements ───────────────────────────────── *)
+
+expr_stmt
+    = expr , ";" ;
+
+(* ── Expressions ─────────────────────────────────────────── *)
+
+expr
+    = switch_expr
+    | apply_expr
+    | binary_expr ;
+
+(* ── Switch Expression ───────────────────────────────────── *)
+(* Switch is value-producing; it may appear on the RHS of a  *)
+(* var_decl. Evaluated by testing each case condition against *)
+(* the switch subject (typically `true`).                     *)
+
+switch_expr
+    = "switch" , "(" , expr , ")" , "{" ,
+        { case_branch } ,
+        [ default_branch ] ,
+      "}" ;
+
+case_branch
+    = "case" , "(" , expr , ")" , ":" ,
+        expr , ";" ,
+        "break" , ";" ;
+
+default_branch
+    = "default" , ":" , expr , ";" ;
+
+(* ── Apply Block ─────────────────────────────────────────── *)
+(* Executes method calls in the receiver's scope; mutates it. *)
+
+apply_expr
+    = postfix_expr , "." , "apply" , "{" ,
+        method_call , { "," , method_call } ,
+      "}" ;
+
+(* ── Binary Expressions ──────────────────────────────────── *)
+
+binary_expr
+    = unary_expr , { binary_op , unary_expr } ;
+
+binary_op
+    = "+" | "-" | "*" | "/" | "%" | ">" | "<" | ">=" | "<=" | "==" | "!=" | "&&" | "||" ;
+
+unary_expr
+    = [ unary_op ] , postfix_expr ;
+
+unary_op
+    = "-" | "!" ;
+
+(* ── Postfix Expressions ─────────────────────────────────── *)
+
+postfix_expr
+    = primary_expr , { postfix_suffix } ;
+
+postfix_suffix
+    = "." , identifier , [ "(" , [ arg_list ] , ")" ]   (* method call or property access *)
+    | "[" , expr , "]"                                   (* index access *)
+    | "(" , [ arg_list ] , ")"                           (* call on result *)
+    ;
+
+method_call
+    = identifier , "(" , [ arg_list ] , ")" ;
+
+arg_list
+    = expr , { "," , expr } ;
+
+(* ── Primary Expressions ─────────────────────────────────── *)
+
+primary_expr
+    = literal
+    | identifier
+    | "(" , expr , ")"
+    | collection_literal ;
+
+(* ── Literals ────────────────────────────────────────────── *)
+
+literal
+    = string_literal
+    | char_literal
+    | integer_literal
+    | float_literal
+    | bool_literal ;
+
+string_literal
+    = '"' , { string_char } , '"' ;
+
+char_literal
+    = "'" , char_char , "'" ;
+
+integer_literal
+    = digit , { digit } ;
+
+float_literal
+    = digit , { digit } , "." , digit , { digit } ;
+
+bool_literal
+    = "true" | "false" ;
+
+(* ── Collection Literal ──────────────────────────────────── *)
+(* Used for initialising List<T>, Vector<T>, and all iterable *)
+(* collection types. Uses [ ] to distinguish from code blocks. *)
+(* NOTE: { } is reserved exclusively for code blocks (block). *)
+
+collection_literal
+    = "[" , expr , { "," , expr } , [ "," ] , "]" ;
+
+(* ── Terminals ───────────────────────────────────────────── *)
+
+identifier
+    = letter , { letter | digit | "_" } ;
+
+letter
+    = "a" | ... | "z" | "A" | ... | "Z" | "_" ;
+
+digit
+    = "0" | ... | "9" ;
+
+string_char
+    = any_char_except_double_quote_or_newline
+    | escape_sequence ;
+
+char_char
+    = any_char_except_single_quote
+    | escape_sequence ;
+
+escape_sequence
+    = "\" , ( "n" | "t" | "r" | "\" | "'" | '"' | "0" ) ;
+
+any_char_except_newline
+    = (* any Unicode scalar value except U+000A *) ;
+
+newline
+    = "\n" | "\r\n" ;
+
+(* ============================================================ *)
+(*  END OF GRAMMAR                                              *)
+(* ============================================================ *)

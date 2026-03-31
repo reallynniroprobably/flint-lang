@@ -1,0 +1,386 @@
+# Flint Language — Human-Readable Grammar Reference
+# Derived by analysis of cipher.flnt
+# Notation used in this document:
+#   [x]      = x is optional
+#   {x}      = x repeats zero or more times
+#   x | y    = x or y
+#   'x'      = literal token x
+
+═══════════════════════════════════════════════════════════════
+  1. COMMENTS
+═══════════════════════════════════════════════════════════════
+
+  A comment begins with `#` and runs to the end of the line.
+  There are no block comments.
+
+  Syntax:
+      # anything goes here until the newline
+
+  Examples:
+      # This is a comment
+      #Header imports, similar to #include
+
+
+═══════════════════════════════════════════════════════════════
+  2. IMPORTS
+═══════════════════════════════════════════════════════════════
+
+  Imports bring external libraries into scope under an alias.
+  There are two syntactic forms:
+
+  ── Block form (multiple imports) ──
+      header(
+          <library> as alias,
+          <library> as alias,
+      );
+
+  ── Single-line form ──
+      header <library> as alias;
+
+  The library name is always wrapped in angle brackets `< >`.
+  The alias becomes a namespace prefix used as `alias.member`.
+
+  Examples:
+      header(
+          <standard> as std,
+      );
+
+      header <io> as io;
+
+
+═══════════════════════════════════════════════════════════════
+  3. TYPES
+═══════════════════════════════════════════════════════════════
+
+  ── Primitive types ──
+      String    — UTF-8 text
+      Int       — integer number
+      Char      — single character
+      Bool      — true or false
+      Float     — floating-point number
+
+  ── Generic types ──
+      TypeName<InnerType>
+
+      The type parameter is a single type placed inside < >.
+      Generic types can be namespace-qualified:
+
+          std.List<Char>
+          std.Map<String, Int>
+
+  ── Qualified types ──
+      namespace.TypeName
+
+      A dot `.` separates the namespace alias from the type.
+
+
+═══════════════════════════════════════════════════════════════
+  4. VARIABLE DECLARATIONS
+═══════════════════════════════════════════════════════════════
+
+  Variables are declared by stating the type, then the name,
+  then assigning an initial value. The semicolon is mandatory.
+
+  Syntax:
+      Type name = expression;
+
+  Examples:
+      String output = "";
+      Int shift = 3;
+      std.List<Char> alphabet = {'a', 'b', 'c'};
+
+  Variables may be declared at global (file) scope or inside
+  any block. There is no `let`, `var`, or `auto` keyword —
+  the type IS the declaration keyword.
+
+
+═══════════════════════════════════════════════════════════════
+  5. COLLECTION LITERALS
+═══════════════════════════════════════════════════════════════
+
+  A list or set of values is written with square brackets `[ ]`,
+  comma-separated. A trailing comma is permitted.
+
+  Syntax:
+      [ value, value, value ]
+
+  Examples:
+      ['a', 'b', 'c', 'd']
+      [1, 2, 3]
+
+  Collection literals are used to initialise iterable collection
+  types such as `std.List<Char>` and `std.Vector<Int>`.
+
+  IMPORTANT: Curly braces `{ }` are EXCLUSIVELY for code blocks
+  (function bodies, loop bodies, if bodies, switch bodies, apply
+  blocks). They are never used for data literals.
+
+
+═══════════════════════════════════════════════════════════════
+  6. FUNCTION DECLARATIONS
+═══════════════════════════════════════════════════════════════
+
+  Functions are declared with return type, name, parameters
+  in parentheses, and a body block in braces.
+
+  Syntax:
+      ReturnType name(Type param, Type param) {
+          ...body...
+      }
+
+  Parameters follow the same `Type name` pattern as variable
+  declarations. The body is a sequence of statements.
+
+  The special function `main` is the program entry point and
+  must return `Int`.
+
+  Examples:
+      String encode(String input, Int shift) { ... }
+      Int main() { ... }
+
+
+═══════════════════════════════════════════════════════════════
+  7. FOR-EACH LOOP
+═══════════════════════════════════════════════════════════════
+
+  Iterates over every element in a collection. The element
+  variable is freshly declared each iteration.
+
+  Syntax:
+      for (Type variable : iterable) {
+          ...body...
+      }
+
+  The `:` reads as "in". On each iteration, `variable` holds
+  the current element.
+
+  Example:
+      for (Char c : input) {
+          # c is each character in the string
+      }
+
+
+═══════════════════════════════════════════════════════════════
+  8. IF STATEMENT
+═══════════════════════════════════════════════════════════════
+
+  Conditional execution. The condition is always parenthesised.
+
+  Syntax:
+      if (condition) {
+          ...
+      }
+
+      if (condition) {
+          ...
+      } else {
+          ...
+      }
+
+  Example:
+      if (c.isUpper) {
+          outputCharacter.apply{ toUpper() }
+      }
+
+
+═══════════════════════════════════════════════════════════════
+  9. SWITCH EXPRESSION
+═══════════════════════════════════════════════════════════════
+
+  Switch in Flint is an EXPRESSION — it produces a value and
+  can appear on the right-hand side of an assignment.
+
+  The subject is typically `true`. Each case tests a boolean
+  condition; the first truthy case wins.
+
+  Syntax:
+      switch (subject) {
+          case (condition): value; break;
+          case (condition): value; break;
+          default:          value;
+      }
+
+  Each case condition is parenthesised.
+  Non-default cases require a `break;` after their value.
+  The `default` branch has no `break` and no parens.
+
+  The entire switch expression is terminated by `}` and then
+  `;` if it is used as an initialiser.
+
+  Example:
+      Char result = switch (true) {
+          case (index < 0):   alphabet[26 + index]; break;
+          case (index > 25):  alphabet[index - 26]; break;
+          default:            alphabet[index];
+      }
+
+
+═══════════════════════════════════════════════════════════════
+  10. METHOD CALLS AND PROPERTY ACCESS
+═══════════════════════════════════════════════════════════════
+
+  Members are accessed with `.` (dot notation).
+
+  ── Method call (with arguments) ──
+      object.method(arg, arg)
+
+  ── Method call (no arguments) ──
+      object.method()
+
+  ── Property access (no parentheses) ──
+      object.property
+
+  The distinction between a zero-arg method and a property is
+  syntactic: properties are written WITHOUT `()`.
+
+  Methods can be called on the result of expressions, including
+  grouped arithmetic:
+
+      (alphabet.find(c.toLower()) + shift).isNegative()
+
+  Chains are left-to-right, evaluated innermost-first.
+
+  Examples:
+      c.toLower()              # method, no args
+      c.isUpper                # property, no parens
+      alphabet.find(c)         # method, one arg
+      alphabet.size()          # method, no args
+      output.pushBack(ch)      # method, one arg
+
+
+═══════════════════════════════════════════════════════════════
+  11. INDEX ACCESS
+═══════════════════════════════════════════════════════════════
+
+  Elements of indexed collections are accessed with `[ ]`.
+
+  Syntax:
+      collection[expression]
+
+  The expression inside is evaluated to an integer index.
+
+  Examples:
+      alphabet[0]
+      alphabet[alphabet.find(c.toLower()) + shift]
+
+
+═══════════════════════════════════════════════════════════════
+  12. APPLY BLOCK
+═══════════════════════════════════════════════════════════════
+
+  `apply` executes one or more method calls in the context of
+  the receiver object and mutates it in-place. It is used to
+  chain mutations without reassignment.
+
+  Syntax:
+      object.apply{ method(), method() }
+
+  Methods inside `apply` are called as if `object` is `self`.
+  No dot prefix is used inside the block — the receiver is
+  implicit.
+
+  Example:
+      outputCharacter.apply{ toUpper() }
+      # equivalent to: outputCharacter = outputCharacter.toUpper()
+
+
+═══════════════════════════════════════════════════════════════
+  13. RETURN STATEMENT
+═══════════════════════════════════════════════════════════════
+
+  Exits the current function and produces a value.
+
+  Syntax:
+      return expression;
+
+  Examples:
+      return output;
+      return 0;
+
+
+═══════════════════════════════════════════════════════════════
+  14. OPERATORS
+═══════════════════════════════════════════════════════════════
+
+  Arithmetic:    +   -   *   /   %
+  Comparison:    >   <   >=  <=  ==  !=
+  Logical:       &&  ||  !
+
+  Operator precedence follows standard mathematical convention
+  (multiplication before addition, etc.).
+
+  Grouped expressions use parentheses:
+      (alphabet.find(c.toLower()) + shift)
+
+
+═══════════════════════════════════════════════════════════════
+  15. LITERALS
+═══════════════════════════════════════════════════════════════
+
+  String:   "hello world"       — double-quoted
+  Char:     'a'                 — single-quoted, one character
+  Integer:  42  0  -1
+  Float:    3.14
+  Bool:     true  false
+
+  Escape sequences inside strings and chars:
+      \n   newline
+      \t   tab
+      \r   carriage return
+      \\   literal backslash
+      \'   literal single quote
+      \"   literal double quote
+      \0   null character
+
+
+═══════════════════════════════════════════════════════════════
+  16. STATEMENT TERMINATION
+═══════════════════════════════════════════════════════════════
+
+  Almost every statement ends with a semicolon `;`.
+
+  Exceptions (no semicolon after the closing brace):
+      - function declarations
+      - for loops
+      - if statements
+      - switch expression body (but the enclosing var_decl has one)
+
+  The import block `header(...);` DOES take a semicolon after
+  its closing parenthesis.
+
+
+═══════════════════════════════════════════════════════════════
+  17. NAMESPACES AND QUALIFIED ACCESS
+═══════════════════════════════════════════════════════════════
+
+  Library aliases imported via `header` act as namespaces.
+  Members are accessed with `.`:
+
+      std.print(value)
+      std.List<Char>
+
+  Namespace aliases are lowercase by convention. Types are
+  PascalCase. Functions and variables are camelCase.
+
+
+═══════════════════════════════════════════════════════════════
+  18. PROGRAM STRUCTURE (SUMMARY)
+═══════════════════════════════════════════════════════════════
+
+  A Flint source file is structured as follows, top to bottom:
+
+      1. Comments (anywhere)
+      2. Import declarations  (header block or header single)
+      3. Global variable declarations
+      4. Function declarations (in any order)
+      5. main() — entry point, must return Int
+
+  There is no forward-declaration requirement observed in the
+  sample — `decode` is called before it is defined, suggesting
+  either single-pass name resolution or declaration ordering
+  is not enforced at the grammar level.
+
+
+═══════════════════════════════════════════════════════════════
+  END OF FLINT GRAMMAR REFERENCE
+═══════════════════════════════════════════════════════════════
